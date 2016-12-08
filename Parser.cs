@@ -4,14 +4,18 @@ using System.Linq;
 using System.Threading;
 using System.Xml.Linq;
 
-namespace ConsoleApplication
+namespace twin_db
 {
     public static class Parser
     {
-        public static IEnumerable<Character> GuildCharactersParser(WebPage wp)
+        /* 
+         * view-source:http://armory.twinstar.cz/guild-info.xml?r=Artemis&gn=Exalted
+         */
+        public static IEnumerable<Guild> GuildCharactersParser(WebPage wp)
         {
             XDocument xdoc;
-            List<Character> parsed = new List<Character>();
+            List<Guild> parsed = new List<Guild>();
+            List<Character> characters = new List<Character>();
 
             if (wp.OK)
             {
@@ -19,21 +23,42 @@ namespace ConsoleApplication
                 {
                     xdoc = XDocument.Parse(wp.content);
 
-                    IEnumerable<XElement> characters = from el in xdoc.Descendants("character")
+                    IEnumerable<XElement> elems2 = from el in xdoc.Descendants("guildHeader")
+                                                   select el;
+
+                    XElement header = elems2.First();
+
+                    Guild g = new Guild();
+                    g.Name = (string)header.Attribute("name");
+                    g.Level = int.Parse((string)header.Attribute("level"));
+                    g.FactionId = int.Parse((string)header.Attribute("faction"));
+                    g.AP = 0;
+                    g.ForceRefresh = true;
+                    g.LastRefresh = DateTime.Now;
+
+                    IEnumerable<XElement> elems = from el in xdoc.Descendants("character")
                         select el;
 
-                    foreach(XElement character in characters)
+                    foreach(XElement character in elems)
                     {
-                        string name = (string)character.Attribute("name");
-                        int level = int.Parse((string)character.Attribute("level"));
-                        int classId = int.Parse((string)character.Attribute("classId"));
-                        int raceId = int.Parse((string)character.Attribute("raceId"));
-                        int genderId = int.Parse((string)character.Attribute("genderId"));
-                        int factionId = int.Parse((string)character.Attribute("factionId"));
-                        int ap = int.Parse((string)character.Attribute("achPoints"));
+                        Character c = new Character();
 
-                        parsed.Add(new Character(name, level, classId, raceId, genderId, factionId, "", ap));
+                        c.Name = (string)character.Attribute("name");
+                        c.Level = int.Parse((string)character.Attribute("level"));
+                        c.ClassId = int.Parse((string)character.Attribute("classId"));
+                        c.RaceId = int.Parse((string)character.Attribute("raceId"));
+                        c.GenderId = int.Parse((string)character.Attribute("genderId"));
+                        c.FactionId = int.Parse((string)character.Attribute("factionId"));
+                        c.AP = int.Parse((string)character.Attribute("achPoints"));
+                        c.HK = 0;
+                        c.ForceRefresh = true;
+                        c.LastRefresh = DateTime.Now;
+
+                        c.Guild = g;
+
+                        characters.Add(c);
                     }
+                    parsed.Add(g);
                 }
                 catch
                 {
@@ -44,7 +69,10 @@ namespace ConsoleApplication
             return parsed;
         }
 
-        //for characters without a guild
+        /*
+         * view-source:http://armory.twinstar.cz/character-feed.xml?r=Artemis&cn=Scaydyxvdfgd
+         * characters without a guild
+         */
         public static IEnumerable<Character> CharacterFeedParser(WebPage wp)
         {
             XDocument xdoc;
@@ -61,17 +89,21 @@ namespace ConsoleApplication
 
                     XElement character = elems.First();
 
-                    string name = (string)character.Attribute("name");
-                    int level = int.Parse((string)character.Attribute("level"));
-                    int classId = int.Parse((string)character.Attribute("classId"));
-                    int raceId = int.Parse((string)character.Attribute("raceId"));
-                    int genderId = int.Parse((string)character.Attribute("genderId"));
-                    int factionId = int.Parse((string)character.Attribute("factionId"));
-                    string guild = (string)character.Attribute("guild");
-                    int ap = int.Parse((string)character.Attribute("point"));
-                    int hk = int.Parse((string)character.Attribute("kills"));
+                    Character c = new Character();
 
-                    parsed.Add(new Character(name, level, classId, raceId, genderId, factionId, guild, ap, hk));
+                    c.Name = (string)character.Attribute("name");
+                    c.Level = int.Parse((string)character.Attribute("level"));
+                    c.ClassId = int.Parse((string)character.Attribute("classId"));
+                    c.RaceId = int.Parse((string)character.Attribute("raceId"));
+                    c.GenderId = int.Parse((string)character.Attribute("genderId"));
+                    c.FactionId = int.Parse((string)character.Attribute("factionId"));
+                    c.AP = int.Parse((string)character.Attribute("points"));
+                    c.HK = int.Parse((string)character.Attribute("kills"));
+                    c.ForceRefresh = false;
+                    c.LastRefresh = DateTime.Now;
+                    c.Guild = null;
+
+                    parsed.Add(c);
                 }
                 catch
                 {
@@ -82,11 +114,14 @@ namespace ConsoleApplication
             return parsed;
         }
 
+        /*
+         * http://armory.twinstar.cz/search.xml?searchQuery=aa&selectedTab=guilds   
+         */
         public static IEnumerable<Guild> GuildNameListParser(WebPage wp)
         {
-            Console.WriteLine("parse started {0}", wp.URL);
+            //Console.WriteLine("parse started {0}", wp.URL);
 
-            SortedSet<Guild> parsed = new SortedSet<Guild>();
+            List<Guild> parsed = new List<Guild>();
             XDocument xdoc;
             
             if (wp.OK) //sanity check
@@ -100,7 +135,15 @@ namespace ConsoleApplication
                     
                     foreach(string s in sGuildNames)
                     {
-                        parsed.Add(new Guild(s));
+                        Guild g = new Guild();
+                        g.Name = s;
+                        g.Level = 0;
+                        g.FactionId = 2;
+                        g.AP = 0;
+                        g.ForceRefresh = true;
+                        g.LastRefresh = DateTime.Now;
+
+                        parsed.Add(g);
                     }
                 }
                 catch
@@ -109,15 +152,18 @@ namespace ConsoleApplication
                 }
             }
 
-            Console.WriteLine("parse ended {0}, total guilds parsed {1}", wp.URL, parsed.Count.ToString());
+            //Console.WriteLine("parse ended {0}, total guilds parsed {1}", wp.URL, parsed.Count.ToString());
             return parsed;
         }
 
+        /*
+         * http://armory.twinstar.cz/search.xml?searchQuery=aa&searchType=character
+         */
         public static IEnumerable<Character> CharacterNameListParser(WebPage wp)
         {
-            Console.WriteLine("parse started {0}", wp.URL);
+            //Console.WriteLine("parse started {0}", wp.URL);
 
-            SortedSet<Character> parsed = new SortedSet<Character>();
+            List<Character> parsed = new List<Character>();
             XDocument xdoc;
             
             if (wp.OK) //sanity check
@@ -131,15 +177,34 @@ namespace ConsoleApplication
                     
                     foreach(XElement character in characters)
                     {
-                        string name = (string)character.Attribute("name");
-                        int level = int.Parse((string)character.Attribute("level"));
-                        int classId = int.Parse((string)character.Attribute("classId"));
-                        int raceId = int.Parse((string)character.Attribute("raceId"));
-                        int genderId = int.Parse((string)character.Attribute("genderId"));
-                        int factionId = int.Parse((string)character.Attribute("factionId"));
-                        string guild = (string)character.Attribute("guild");
-                        
-                        parsed.Add(new Character(name, level, classId, raceId, genderId, factionId, guild));
+                        Character c = new Character();
+                        Guild g = null;
+                        string gName = "";
+
+                        c.Name = (string)character.Attribute("name");
+                        c.Level = int.Parse((string)character.Attribute("level"));
+                        c.ClassId = int.Parse((string)character.Attribute("classId"));
+                        c.RaceId = int.Parse((string)character.Attribute("raceId"));
+                        c.GenderId = int.Parse((string)character.Attribute("genderId"));
+                        c.FactionId = int.Parse((string)character.Attribute("factionId"));
+                        c.AP = 0;
+                        c.HK = 0;
+                        c.ForceRefresh = true;
+                        c.LastRefresh = DateTime.Now;
+                        gName = (string)character.Attribute("guild");
+                        if (gName != null)
+                        {
+                            g = new Guild();
+                            g.Name = gName;
+                            g.Level = 0;
+                            g.FactionId = c.GenderId;
+                            g.AP = 0;
+                            g.ForceRefresh = true;
+                            g.LastRefresh = DateTime.Now;
+                        }
+                        c.Guild = g;
+
+                        parsed.Add(c);
                     }
                 }
                 catch
@@ -148,7 +213,7 @@ namespace ConsoleApplication
                 }
             }
 
-            Console.WriteLine("parse ended {0}, total characters parsed {1}", wp.URL, parsed.Count.ToString());
+            //Console.WriteLine("parse ended {0}, total characters parsed {1}", wp.URL, parsed.Count.ToString());
             return parsed;
         }
     }

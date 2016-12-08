@@ -1,6 +1,6 @@
 
 
-namespace ConsoleApplication
+namespace twin_db
 {
     public class WebPage
     {

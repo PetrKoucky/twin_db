@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ConsoleApplication
+namespace twin_db
 {
     public class Downloader<T>
     {
@@ -44,12 +44,12 @@ namespace ConsoleApplication
 
         private async Task<Tuple<string,bool>> TaskAsync(string URL)
         {
-            Console.WriteLine("+++ started {0}", URL);
+            //Console.WriteLine("+++ started {0}", URL);
             var webPage = await HtmlDownloader.DownloadPageAsync(URL);
-            Console.WriteLine("----- ended {0}, {1}", URL, webPage.OK.ToString());
+            //Console.WriteLine("----- ended {0}, {1}", URL, webPage.OK.ToString());
 
             semaphore.Release();
-            Console.WriteLine("-- released {0}", URL);
+            //Console.WriteLine("-- released {0}", URL);
 
             var parsed = parserFunc(webPage);
 

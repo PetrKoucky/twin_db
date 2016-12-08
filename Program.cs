@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace ConsoleApplication
+//  metadata=res://*/Model1.csdl|res://*/Model1.ssdl|res://*/Model1.msl;provider=System.Data.SqlClient;provider connection string="data source=(LocalDB)\v11.0;attachdbfilename=|DataDirectory|\DB\twin_DB.mdf;integrated security=True;MultipleActiveResultSets=True;App=EntityFramework"
+
+namespace twin_db
 {
     public class Program
     {
@@ -12,8 +14,8 @@ namespace ConsoleApplication
             NameList nl = new NameList();
 
             nl.MakeCharacterNameListAsync();
-            Console.ReadLine();
             nl.MakeGuildNameListAsync();
+
             Console.ReadLine();
         }
     }
@@ -28,6 +30,7 @@ namespace ConsoleApplication
 
         public async Task MakeGuildNameListAsync()
         {
+            DateTime start = DateTime.Now;
             Downloader<Guild> d = new Downloader<Guild>(3, Parser.GuildNameListParser, DBAccess.SaveGuildNameList);
             List<string> URLs = new List<string>();
             int safeGuard = 3;
@@ -40,13 +43,13 @@ namespace ConsoleApplication
             while (URLs.Count > 0 && safeGuard-- > 0)
             {
                 URLCount += URLs.Count;
-                Console.WriteLine("to download: {0}, sum: {1}", URLs.Count.ToString(), URLCount.ToString());
+                //Console.WriteLine("to download: {0}, sum: {1}", URLs.Count.ToString(), URLCount.ToString());
 
                 Task<List<Tuple<string,bool>>> nameListTask = d.StartDownloadAsync(null, URLs);
 
                 await nameListTask;
 
-                Console.WriteLine("DOWNLOADED!");
+                //Console.WriteLine("DOWNLOADED!");
                 URLs.Clear();
                 foreach(Tuple<string,bool> res in nameListTask.Result)
                 {
@@ -57,11 +60,12 @@ namespace ConsoleApplication
                 }
                 URLs = URLs.Distinct().ToList();
             }
-            Console.WriteLine("GUILDS DONE!");
+            Console.WriteLine("GUILDS DONE! elapsed time: {0}", DateTime.Now.Subtract(start).ToString());
         }
 
         public async Task MakeCharacterNameListAsync()
         {
+            DateTime start = DateTime.Now;
             Downloader<Character> d = new Downloader<Character>(3, Parser.CharacterNameListParser, DBAccess.SaveCharacterNameList);
             List<string> URLs;
             int safeGuard = 3;
@@ -74,13 +78,13 @@ namespace ConsoleApplication
             while (URLs.Count > 0 && safeGuard-- > 0)
             {
                 URLCount += URLs.Count;
-                Console.WriteLine("to download: {0}, sum: {1}", URLs.Count.ToString(), URLCount.ToString());
+                //Console.WriteLine("to download: {0}, sum: {1}", URLs.Count.ToString(), URLCount.ToString());
 
                 Task<List<Tuple<string,bool>>> nameListTask = d.StartDownloadAsync(null, URLs);
 
                 await nameListTask;
 
-                Console.WriteLine("DOWNLOADED!");
+                //Console.WriteLine("DOWNLOADED!");
                 URLs.Clear();
                 foreach(Tuple<string,bool> res in nameListTask.Result)
                 {
@@ -91,16 +95,16 @@ namespace ConsoleApplication
                 }
                 URLs = URLs.Distinct().ToList();
             }
-            Console.WriteLine("CHARACTERS DONE!");
+            Console.WriteLine("CHARACTERS DONE! elapsed time: {0}", DateTime.Now.Subtract(start).ToString());
         }
 
         private List<string> InitURLs(string prefix, string suffix)
         {
             List<string> URLs = new List<string>();
 
-            for (char cFirst = 'a'; cFirst <= 'a'; cFirst++)
+            for (char cFirst = 'a'; cFirst <= 'z'; cFirst++)
             {
-                for (char cSecond = 'a'; cSecond <= 'c'; cSecond++)
+                for (char cSecond = 'a'; cSecond <= 'z'; cSecond++)
                 {
                      URLs.Add(prefix + cFirst + cSecond + suffix);
                 }
@@ -116,7 +120,7 @@ namespace ConsoleApplication
         {
             List<string> output = new List<string>();
 
-            for (char ex = 'a'; ex <= 'c'; ex++)
+            for (char ex = 'a'; ex <= 'z'; ex++)
             {
                 output.Add(urlBase1 + ParseOutToken(URL) + ex + suffix);
             }
