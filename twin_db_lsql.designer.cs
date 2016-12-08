@@ -9,6 +9,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
+#if (WINDOWS)
 namespace twin_db
 {
 	using System.Data.Linq;
@@ -1659,4 +1660,5 @@ namespace twin_db
 		}
 	}
 }
+#endif
 #pragma warning restore 1591

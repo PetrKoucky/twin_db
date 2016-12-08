@@ -22,17 +22,25 @@ namespace twin_db
             this.dbSaveFunc = dbSaveFunc;
         }
 
-        public async Task<List<Tuple<string,bool>>> StartDownloadAsync(IProgress<int> progress, List<string> URLs)
+        public async Task<List<Tuple<string,bool>>> StartDownloadAsync(IProgress<Tuple<int, string>> progress, List<string> URLs)
         {
             List<Task> taskList = new List<Task>();
             List<Tuple<string,bool>> output = new List<Tuple<string,bool>>();
+            int total = URLs.Count;
+            int started = 0;
 
             foreach(string URL in URLs)
-            {
+            {   
+                if (progress != null)
+                {
+                    started++;
+                    progress.Report(new Tuple<int, string>(started * 100 / total, started.ToString() + " out of " + total.ToString()));
+                }                
                 await semaphore.WaitAsync();
                 taskList.Add(TaskAsync(URL));
+
             }
-            await Task.WhenAll(taskList);
+            await Task.WhenAll(taskList);            
 
             //compile output <URL, valid_download>
             foreach(Task<Tuple<string,bool>> t in taskList)
@@ -44,12 +52,8 @@ namespace twin_db
 
         private async Task<Tuple<string,bool>> TaskAsync(string URL)
         {
-            //Console.WriteLine("+++ started {0}", URL);
             var webPage = await HtmlDownloader.DownloadPageAsync(URL);
-            //Console.WriteLine("----- ended {0}, {1}", URL, webPage.OK.ToString());
-
             semaphore.Release();
-            //Console.WriteLine("-- released {0}", URL);
 
             var parsed = parserFunc(webPage);
 

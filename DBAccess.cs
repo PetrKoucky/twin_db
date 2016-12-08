@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+#if (WINDOWS)
 using System.Data.Linq;
+#endif
 using System.Linq;
 using System.Text;
 
@@ -13,31 +15,45 @@ namespace twin_db
         
         public static void SaveCharacterNameList(IEnumerable<Character> toSave, string URL)
         {
-            //Console.WriteLine("save started {0}", URL);
-            
+            if (toSave == null)
+                return;
+
             foreach(Character c in toSave)
             {
                 InsertCharacter(c);
             }
-
-            //Console.WriteLine("save ended {0}", URL);
         }
 
         public static void SaveGuildNameList(IEnumerable<Guild> toSave, string URL)
         {
-            //Console.WriteLine("save started {0}", URL);
+            if (toSave == null)
+                return;
 
             foreach (Guild g in toSave)
             {
                 InsertGuild(g);
             }
+        }
 
-            //Console.WriteLine("save ended {0}", URL);
+        public static IEnumerable<Guild> GetGuildSet()
+        {
+            #if (WINDOWS)
+            twin_db_lsqlDataContext db = new twin_db_lsqlDataContext(connectionString);
+
+            //TODO get Guild table
+            #endif
+            List<Guild> guilds = new List<Guild>();
+            Guild g = new Guild();
+            g.Name = "Exalted";
+            guilds.Add(g);
+
+            return guilds;
         }
 
 
         private static bool InsertCharacter(Character character)
         {
+            #if (WINDOWS)
             twin_db_lsqlDataContext db = new twin_db_lsqlDataContext(connectionString);
             //Console.WriteLine("Character {0}", character.Name);
             
@@ -135,12 +151,14 @@ namespace twin_db
                     return false;
                 }
             }
-
+            
+            #endif
             return true;
         }
 
         private static bool InsertGuild(Guild guildToInsert)
         {
+            #if (WINDOWS)
             twin_db_lsqlDataContext db = new twin_db_lsqlDataContext(connectionString);
             //Console.WriteLine("Guild {0}", guildToInsert.Name);
 
@@ -210,6 +228,7 @@ namespace twin_db
                 }
             }
 
+            #endif
             return true;
         }
     }

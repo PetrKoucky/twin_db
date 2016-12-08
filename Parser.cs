@@ -8,6 +8,50 @@ namespace twin_db
 {
     public static class Parser
     {
+        /*
+         * view-source:http://armory.twinstar.cz/guild-achievements.xml?r=Artemis&gn=Exalted
+         */
+        public static IEnumerable<Guild> GuildAPParser(WebPage wp)
+        {
+            XDocument xdoc;
+            List<Guild> parsed = new List<Guild>();
+
+            if (wp.OK)
+            {
+                try
+                {
+                    xdoc = XDocument.Parse(wp.content);
+
+                    IEnumerable<XElement> elems = from el in xdoc.Descendants("guildHeader")
+                        select el;
+
+                    XElement header = elems.First();
+
+                    IEnumerable<XElement> elems2 = from el in xdoc.Descendants("c")
+                        where (string)el.Attribute("categoryId") == "0"
+                        select el;
+
+                    XElement achiev = elems2.First();
+
+                    Guild g = new Guild();
+                    g.Name = (string)header.Attribute("name");
+                    g.Level = int.Parse((string)header.Attribute("level"));
+                    g.FactionId = int.Parse((string)header.Attribute("faction"));
+                    g.AP = int.Parse((string)achiev.Attribute("points"));
+                    g.Characters = null;
+                    g.ForceRefresh = false;
+                    g.LastRefresh = DateTime.Now;
+
+                    parsed.Add(g);
+                }
+                catch
+                {
+
+                }
+            }
+            return parsed;
+        }
+
         /* 
          * view-source:http://armory.twinstar.cz/guild-info.xml?r=Artemis&gn=Exalted
          */
@@ -24,7 +68,7 @@ namespace twin_db
                     xdoc = XDocument.Parse(wp.content);
 
                     IEnumerable<XElement> elems2 = from el in xdoc.Descendants("guildHeader")
-                                                   select el;
+                        select el;
 
                     XElement header = elems2.First();
 
@@ -48,7 +92,7 @@ namespace twin_db
                         c.ClassId = int.Parse((string)character.Attribute("classId"));
                         c.RaceId = int.Parse((string)character.Attribute("raceId"));
                         c.GenderId = int.Parse((string)character.Attribute("genderId"));
-                        c.FactionId = int.Parse((string)character.Attribute("factionId"));
+                        c.FactionId = g.FactionId;
                         c.AP = int.Parse((string)character.Attribute("achPoints"));
                         c.HK = 0;
                         c.ForceRefresh = true;
@@ -58,6 +102,7 @@ namespace twin_db
 
                         characters.Add(c);
                     }
+                    g.Characters = characters;
                     parsed.Add(g);
                 }
                 catch
@@ -197,7 +242,7 @@ namespace twin_db
                             g = new Guild();
                             g.Name = gName;
                             g.Level = 0;
-                            g.FactionId = c.GenderId;
+                            g.FactionId = c.FactionId;
                             g.AP = 0;
                             g.ForceRefresh = true;
                             g.LastRefresh = DateTime.Now;
