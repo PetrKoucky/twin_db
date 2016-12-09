@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Xml.Linq;
@@ -8,6 +9,93 @@ namespace twin_db
 {
     public static class Parser
     {
+        //view-source:http://armory.twinstar.cz/character-achievements.xml?r=Artemis,Artemis,Artemis&n=Sed,Sedara,Zanny&c=92
+        public static IEnumerable<Character> CharacterAchievParser(WebPage wp)
+        {
+            XDocument xdoc;
+            List<Character> parsed = new List<Character>();
+            List<string> names = null;
+            Character temp = null;
+            Achievement tempAchiev = null;
+            EarnedCAchievement tempEarned = null;
+
+            if (wp.OK)
+            {
+                names = GetCharacterNames(wp.URL);
+                if (names != null)
+                {
+                    foreach (string n in names)
+                    {
+                        temp = new Character();
+                        temp.Name = n;
+                        parsed.Add(temp);
+                    }
+
+                    try
+                    {
+                        xdoc = XDocument.Parse(wp.content);
+
+                        IEnumerable<XElement> rows = from el in xdoc.Descendants("tr")
+                            where (string)el.Attribute("class") == "comp_row"
+                            select el;
+
+                        foreach (XElement row in rows)
+                        {
+                            IEnumerable<XElement> achDescs = from el in row.Descendants("div")
+                                where (string)el.Attribute("class") == "compare_desc"
+                                select el;
+                            IEnumerable<XElement> achDesc = from el in achDescs.First().Descendants("div")
+                                where el.HasAttributes 
+                                select el;                            
+                            tempAchiev = new Achievement();
+                            tempAchiev.Name = achDesc.First().Value.ToString();
+
+                            IEnumerable<XElement> achs = from el in row.Descendants("td")
+                                where ((string)el.Attribute("class") == "p_box" || (string)el.Attribute("class") == "completed")
+                                select el;
+
+                            for (int index = 0; index < achs.Count(); index++)
+                            {
+                                if ((string)achs.ElementAt(index).Attribute("class") == "completed")
+                                {
+                                    IEnumerable<XElement> comp = from el in achs.ElementAt(index).Descendants("div")
+                                        where (string)el.Attribute("class") == "comp_date"
+                                        select el;
+
+                                    tempEarned = new EarnedCAchievement();
+                                    tempEarned.Timestamp = DateTime.ParseExact(comp.First().Value.ToString(), "[dd/MM/yyyy HH:mm:ss]", CultureInfo.InvariantCulture);
+                                    parsed.ElementAt(index).EarnedCAchievement.Add(tempEarned);
+                                }
+                                else
+                                {
+
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+            return parsed.GetRange(1, parsed.Count() - 1);
+        }
+        private static List<string> GetCharacterNames(string URL)
+        {
+            int i = URL.IndexOf("&n=");
+            int o = URL.IndexOf("&c=");
+
+            if (i <= 0 || o <= 0)
+            {
+                return null;
+            }
+
+            string namesPart = URL.Substring(i + 3, (o + 3) - (i + 3));
+
+            return namesPart.Split(',').ToList();
+        } 
+
         /*
          * view-source:http://armory.twinstar.cz/guild-achievements.xml?r=Artemis&gn=Exalted
          */
@@ -115,7 +203,7 @@ namespace twin_db
         }
 
         /*
-         * view-source:http://armory.twinstar.cz/character-feed.xml?r=Artemis&cn=Scaydyxvdfgd
+         * view-source:http://armory.twinstar.cz/character-feed.xml?r=Artemis&cn=Sedara
          * characters without a guild
          */
         public static IEnumerable<Character> CharacterFeedParser(WebPage wp)

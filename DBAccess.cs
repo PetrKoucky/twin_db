@@ -50,6 +50,33 @@ namespace twin_db
             return guilds;
         }
 
+        public static IEnumerable<Character> GetCharacterSet()
+        {
+            #if (WINDOWS)
+            twin_db_lsqlDataContext db = new twin_db_lsqlDataContext(connectionString);
+
+            //TODO get Character table
+            #endif
+            List<Character> characters = new List<Character>();
+            Character c;
+            c = new Character();
+            c.Name = "Sedara";
+            characters.Add(c);
+            c = new Character();
+            c.Name = "Zanny";
+            characters.Add(c);
+            c = new Character();
+            c.Name = "Teror";
+            characters.Add(c);
+            c = new Character();
+            c.Name = "Comy";
+            characters.Add(c);
+            c = new Character();
+            c.Name = "Sio";
+            characters.Add(c);
+            return characters;
+        }
+
 
         private static bool InsertCharacter(Character character)
         {
