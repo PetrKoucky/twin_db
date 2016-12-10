@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Linq;
 using System.Linq;
 using System.Threading;
 using System.Xml.Linq;
@@ -59,7 +60,7 @@ namespace twin_db
         {
             XDocument xdoc;
             List<Guild> parsed = new List<Guild>();
-            List<Character> characters = new List<Character>();
+            EntitySet<Character> characters = new EntitySet<Character>();
 
             if (wp.OK)
             {

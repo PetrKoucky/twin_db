@@ -9,5 +9,8 @@
 &lt;/SerializableConnectionString&gt;</DesignTimeValue>
       <Value Profile="(Default)">@"Data Source=(LocalDB)\v11.0;AttachDbFilename=C:\Users\kouck\Documents\twinstar_project\DB\twin_DB.mdf;Integrated Security=True;Connect Timeout=30"</Value>
     </Setting>
+    <Setting Name="WINDOWS" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
