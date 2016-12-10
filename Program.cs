@@ -10,9 +10,11 @@ namespace twin_db
     public class Program
     {
         private static Core core;
+        private static int cursorTop;
 
         public static void Main(string[] args)
         {
+            cursorTop = Console.CursorTop;
             core = new Core();
             Menu();
         }
@@ -22,7 +24,8 @@ namespace twin_db
             bool run = true;
             string input = "";
             int intInput = 0;
-            Task running = Task.Delay(1);            
+            Task running = Task.Delay(1);  
+            var progressReporter1 = new Progress<Tuple<int, string>>(ProgressReport);          
 
             PrintHelp();
             while (run)
@@ -39,22 +42,31 @@ namespace twin_db
                     case "1":
                         if (running.IsCompleted)
                         {
-                            var progressReporter1 = new Progress<Tuple<int, string>>(ProgressReport);
                             running = core.MakeCharacterNameListAsync(progressReporter1);
                         }
                         break;
                     case "2":
                         if (running.IsCompleted)
                         {
-                            var progressReporter2 = new Progress<Tuple<int, string>>(ProgressReport);
-                            running = core.MakeGuildNameListAsync(progressReporter2);
+                            running = core.MakeGuildNameListAsync(progressReporter1);
                         }
                         break;
                     case "3":
                         if (running.IsCompleted)
                         {
-                            var progressReporter3 = new Progress<Tuple<int, string>>(ProgressReport);
-                            running = core.MakeGuildsAsync(progressReporter3);
+                            running = core.MakeGuildsAsync(progressReporter1);
+                        }
+                        break;
+                    case "4":
+                        if (running.IsCompleted)
+                        {
+                            running = core.UpdateGuildApAsync(progressReporter1);
+                        }
+                        break;
+                    case "5":
+                        if (running.IsCompleted)
+                        {
+                            running = core.UpdateCharactersAchievementsAsync(progressReporter1);
                         }
                         break;
                     case "exit":
@@ -79,13 +91,19 @@ namespace twin_db
 
             Console.WriteLine("3 - Get Guilds from DB and download their characters");
 
+            Console.WriteLine("4 - Get Guilds from DB and download their APs");
+
+            Console.WriteLine("5 - Get Achievements of Characters");
+
             Console.WriteLine("exit");
         }
 
         public static void ProgressReport(Tuple<int, string> tup)
         {
-            Console.SetCursorPosition(0 , Console.CursorTop);
+            int left = Console.CursorLeft, top = Console.CursorTop; 
+            Console.SetCursorPosition(80 , cursorTop);
             Console.Write("Started {0,3}%, {1}", tup.Item1.ToString(), tup.Item2);
+            Console.SetCursorPosition(left , top);
         }
     }
 
@@ -96,6 +114,10 @@ namespace twin_db
         private const string URLGUILDSUFFIX = "&selectedTab=guilds";
         private const string URLGUILDBASE = "http://armory.twinstar.cz/guild-info.xml?r=Artemis&gn=";
         private const string URLGUILDAPBASE = "http://armory.twinstar.cz/guild-achievements.xml?r=Artemis&gn=";
+        private const string URLCHARACTERACHIEVEMENTS = "http://armory.twinstar.cz/character-achievements.xml?r=";
+        private const string URLNAMESEARCH = "&n=";
+        private const string URLCATEGORYSEARCH = "&c=";
+        private const string URLREALMSEARCH = "&r=";
 
         private const int DEF_SAVEGUARD = 3;
 
@@ -121,27 +143,83 @@ namespace twin_db
 			}
 		}
 
+        public async Task UpdateCharactersAchievementsAsync(IProgress<Tuple<int, string>> progres)
+        {
+            DateTime start = DateTime.Now;     
+            Downloader<Character> d = new Downloader<Character>(this._concurrency, Parser.CharacterAchievParser, DBAccess.SaveCharacterNameList);
+            List<string> URLs = new List<string>();
+
+            List<Character> chars = DBAccess.GetCharacterSet().ToList();
+            //TODO get all character achievement categories
+
+            //foreach category id
+            for (int i = 0; i < chars.Count; i+=4)
+            {
+                if ((chars.Count - i) < 4)
+                {
+                    URLs.Add(CreateCharacterAchievURL(chars.GetRange(i, chars.Count - i), 92));
+                }
+                else
+                {
+                    URLs.Add(CreateCharacterAchievURL(chars.GetRange(i, 4), 92));
+                }
+            }
+
+            Task<List<Tuple<string,bool>>> task = d.StartDownloadAsync(progres, URLs);
+
+            await task;
+        }
+        private string CreateCharacterAchievURL(List<Character> characters, int category)
+        {
+            string names = "Sed,";
+            string realm = "Artemis,";
+            foreach (Character c in characters)
+            {
+                names += c.Name + ",";
+                realm += "Artemis,";
+            }
+            return URLCHARACTERACHIEVEMENTS + URLREALMSEARCH + realm.Substring(0, realm.Length - 1) + URLNAMESEARCH 
+                + names.Substring(0, names.Length - 1) + URLCATEGORYSEARCH + category.ToString();
+        }
+
+        public async Task UpdateGuildApAsync(IProgress<Tuple<int, string>> progres)
+        {
+            DateTime start = DateTime.Now;            
+            Downloader<Guild> d = new Downloader<Guild>(this._concurrency, Parser.GuildAPParser, DBAccess.SaveGuildNameList);
+            List<string> URLsAP = new List<string>();
+
+            Console.WriteLine("Update of guild achievement points STARTED!");
+
+            foreach (Guild g in DBAccess.GetGuildSet())
+            {
+                URLsAP.Add(URLGUILDAPBASE + g.Name);
+            }
+
+            Task<List<Tuple<string,bool>>> guildsAPTask = d.StartDownloadAsync(progres, URLsAP);
+
+            await guildsAPTask;
+
+            Console.WriteLine("DONE! elapsed time {0}", (DateTime.Now.Subtract(start)).ToString());
+        }
+
         public async Task MakeGuildsAsync(IProgress<Tuple<int, string>> progres)
         {
             DateTime start = DateTime.Now;
-            Downloader<Guild> d = new Downloader<Guild>(this._concurrency, Parser.GuildCharactersParser, DBAccess.SaveGuildNameList);
-            Downloader<Guild> dAP = new Downloader<Guild>(this._concurrency, Parser.GuildAPParser, DBAccess.SaveGuildNameList);
-            List<string> URLs = new List<string>();
-            List<string> URLsAP = new List<string>();
+            Downloader<Guild> d = new Downloader<Guild>(this._concurrency, Parser.GuildCharactersParser, DBAccess.SaveGuildNameList);            
+            List<string> URLs = new List<string>();            
+
+            Console.WriteLine("Update of guild characters STARTED!");
 
             foreach (Guild g in DBAccess.GetGuildSet())
             {
                 URLs.Add(URLGUILDBASE + g.Name);
-                URLsAP.Add(URLGUILDAPBASE + g.Name);
             }
 
             Task<List<Tuple<string,bool>>> guildsTask = d.StartDownloadAsync(progres, URLs);
 
             await guildsTask;
 
-            Task<List<Tuple<string,bool>>> guildsAPTask = d.StartDownloadAsync(progres, URLsAP);
-
-            await guildsAPTask;
+            Console.WriteLine("DONE! elapsed time {0}", (DateTime.Now.Subtract(start)).ToString());
         }
 
         /*
