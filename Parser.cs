@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Threading;
 using System.Xml.Linq;
 
 namespace twin_db
@@ -12,6 +11,7 @@ namespace twin_db
         //view-source:http://armory.twinstar.cz/character-achievements.xml?r=Artemis,Artemis,Artemis&n=Sed,Sedara,Zanny&c=92
         public static IEnumerable<Character> CharacterAchievParser(WebPage wp)
         {
+            DateTime start = DateTime.Now;
             XDocument xdoc;
             List<Character> parsed = new List<Character>();
             List<string> names = null;
@@ -33,6 +33,11 @@ namespace twin_db
 
                     try
                     {
+                        //ugly workarounds for an ugly web page
+                        if(wp.content[1] == 'b')
+                            wp.content = wp.content.Substring(wp.content.IndexOf("<table>"));
+                        wp.content = wp.content.Replace("png\">", "png\"></img>").Replace("&mdash;", "").Replace("\t", "").Replace("\n", "");
+                        
                         xdoc = XDocument.Parse(wp.content);
 
                         IEnumerable<XElement> rows = from el in xdoc.Descendants("tr")
@@ -64,6 +69,7 @@ namespace twin_db
 
                                     tempEarned = new EarnedCAchievement();
                                     tempEarned.Timestamp = DateTime.ParseExact(comp.First().Value.ToString(), "[dd/MM/yyyy HH:mm:ss]", CultureInfo.InvariantCulture);
+                                    tempEarned.Achievement = tempAchiev;
                                     parsed.ElementAt(index).EarnedCAchievement.Add(tempEarned);
                                 }
                                 else
@@ -73,12 +79,14 @@ namespace twin_db
                             }
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-
+                        Logger.Log("Erorr in CharacterAchievParser, URL " + wp.URL);
                     }
                 }
             }
+
+            Logger.Log("Parsed " + DateTime.Now.Subtract(start).ToString() + ", URL " + wp.URL);
             return parsed.GetRange(1, parsed.Count() - 1);
         }
         private static List<string> GetCharacterNames(string URL)
@@ -91,7 +99,7 @@ namespace twin_db
                 return null;
             }
 
-            string namesPart = URL.Substring(i + 3, (o + 3) - (i + 3));
+            string namesPart = URL.Substring(i + 3, o - (i + 3));
 
             return namesPart.Split(',').ToList();
         } 
@@ -134,7 +142,7 @@ namespace twin_db
                 }
                 catch
                 {
-
+                    Logger.Log("Erorr in GuildAPParser, URL " + wp.URL);
                 }
             }
             return parsed;
@@ -195,7 +203,7 @@ namespace twin_db
                 }
                 catch
                 {
-                    Console.WriteLine("error in guild characters parsing of " + wp.URL);
+                    Logger.Log("Erorr in GuildCharactersParser, URL " + wp.URL);
                 }
             }
 
@@ -240,7 +248,7 @@ namespace twin_db
                 }
                 catch
                 {
-                    Console.WriteLine("error in character feed parsing of " + wp.URL);
+                    Logger.Log("Erorr in CharacterFeedParser, URL " + wp.URL);
                 }
             }
 
@@ -281,11 +289,10 @@ namespace twin_db
                 }
                 catch
                 {
-                    Console.WriteLine("error in guild parsing of " + wp.URL);
+                    Logger.Log("Erorr in GuildNameListParser, URL " + wp.URL);
                 }
             }
 
-            //Console.WriteLine("parse ended {0}, total guilds parsed {1}", wp.URL, parsed.Count.ToString());
             return parsed;
         }
 
@@ -342,11 +349,10 @@ namespace twin_db
                 }
                 catch
                 {
-                    Console.WriteLine("error in characters parsing of " + wp.URL);
+                    Logger.Log("Erorr in CharacterNameListParser, URL " + wp.URL);
                 }
             }
 
-            //Console.WriteLine("parse ended {0}, total characters parsed {1}", wp.URL, parsed.Count.ToString());
             return parsed;
         }
     }

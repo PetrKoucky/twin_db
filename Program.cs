@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 //  metadata=res://*/Model1.csdl|res://*/Model1.ssdl|res://*/Model1.msl;provider=System.Data.SqlClient;provider connection string="data source=(LocalDB)\v11.0;attachdbfilename=|DataDirectory|\DB\twin_DB.mdf;integrated security=True;MultipleActiveResultSets=True;App=EntityFramework"
@@ -145,29 +146,36 @@ namespace twin_db
 
         public async Task UpdateCharactersAchievementsAsync(IProgress<Tuple<int, string>> progres)
         {
-            DateTime start = DateTime.Now;     
+            DateTime start = DateTime.Now;
             Downloader<Character> d = new Downloader<Character>(this._concurrency, Parser.CharacterAchievParser, DBAccess.SaveCharacterNameList);
             List<string> URLs = new List<string>();
+            int charsPerReq = 12;
+            int[] cat = {92, 96, 95, 168, 81, 201, 15068};
 
             List<Character> chars = DBAccess.GetCharacterSet().ToList();
             //TODO get all character achievement categories
 
             //foreach category id
-            for (int i = 0; i < chars.Count; i+=4)
+            foreach(int c in cat)
             {
-                if ((chars.Count - i) < 4)
+                for (int i = 0; i < chars.Count; i+=charsPerReq)
                 {
-                    URLs.Add(CreateCharacterAchievURL(chars.GetRange(i, chars.Count - i), 92));
-                }
-                else
-                {
-                    URLs.Add(CreateCharacterAchievURL(chars.GetRange(i, 4), 92));
+                    if ((chars.Count - i) < charsPerReq)
+                    {
+                        URLs.Add(CreateCharacterAchievURL(chars.GetRange(i, chars.Count - i), c));
+                    }
+                    else
+                    {
+                        URLs.Add(CreateCharacterAchievURL(chars.GetRange(i, charsPerReq), c));
+                    }
                 }
             }
 
             Task<List<Tuple<string,bool>>> task = d.StartDownloadAsync(progres, URLs);
 
             await task;
+
+            Console.WriteLine("Done with Update of Character achievements");
         }
         private string CreateCharacterAchievURL(List<Character> characters, int category)
         {
@@ -178,7 +186,7 @@ namespace twin_db
                 names += c.Name + ",";
                 realm += "Artemis,";
             }
-            return URLCHARACTERACHIEVEMENTS + URLREALMSEARCH + realm.Substring(0, realm.Length - 1) + URLNAMESEARCH 
+            return URLCHARACTERACHIEVEMENTS + realm.Substring(0, realm.Length - 1) + URLNAMESEARCH 
                 + names.Substring(0, names.Length - 1) + URLCATEGORYSEARCH + category.ToString();
         }
 

@@ -1,6 +1,6 @@
 using System;
 using System.Net.Http;
-using System.Threading;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace twin_db
@@ -10,9 +10,20 @@ namespace twin_db
         private static HttpClient htClient = new HttpClient();
         public static async Task<WebPage> DownloadPageAsync(string URL)
         {
+            DateTime start = DateTime.Now;
             WebPage wp =new WebPage(URL);
-            wp.content = await htClient.GetStringAsync(URL);
-            wp.Valide();
+            try
+            {            
+                var res = await htClient.GetByteArrayAsync(URL);
+                wp.content = Encoding.UTF8.GetString(res, 0 , res.Length).ToString();
+                wp.Valide();
+                if (wp.OK)
+                    Logger.Log("Downloaded in " + DateTime.Now.Subtract(start).ToString() + ", " + wp.URL);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("Unable to download URL: " + wp.URL);
+            }
 
             return wp;
         }

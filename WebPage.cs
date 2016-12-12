@@ -30,8 +30,14 @@ namespace twin_db
         public void Valide()
         {
             if (this.content.Length >= 300)
+            {
                 this.OK = true;
-            else this.OK = false;
+            }
+            else 
+            {   
+                this.OK = false;
+                Logger.Log("Download failed, URL " + this.URL);
+            }
         }
     }
 }
