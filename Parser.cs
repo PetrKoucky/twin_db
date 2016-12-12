@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Linq;
 using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
@@ -70,7 +71,7 @@ namespace twin_db
                                     tempEarned = new EarnedCAchievement();
                                     tempEarned.Timestamp = DateTime.ParseExact(comp.First().Value.ToString(), "[dd/MM/yyyy HH:mm:ss]", CultureInfo.InvariantCulture);
                                     tempEarned.Achievement = tempAchiev;
-                                    parsed.ElementAt(index).EarnedCAchievement.Add(tempEarned);
+                                    parsed.ElementAt(index).EarnedCAchievements.Add(tempEarned);
                                 }
                                 else
                                 {
@@ -155,7 +156,7 @@ namespace twin_db
         {
             XDocument xdoc;
             List<Guild> parsed = new List<Guild>();
-            List<Character> characters = new List<Character>();
+            EntitySet<Character> characters = new EntitySet<Character>();
 
             if (wp.OK)
             {

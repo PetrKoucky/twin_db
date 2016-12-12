@@ -91,6 +91,7 @@
       <DependentUpon>Model1.tt</DependentUpon>
     </Compile>
     <Compile Include="DBAccess.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="twin_db_lsql.designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
