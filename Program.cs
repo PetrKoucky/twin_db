@@ -10,6 +10,8 @@ namespace twin_db
 {
     public class Program
     {
+        private static readonly Object _consoleLock = new Object();
+
         private static Core core;
         private static int cursorTop;
 
@@ -70,6 +72,12 @@ namespace twin_db
                             running = core.UpdateCharactersAchievementsAsync(progressReporter1);
                         }
                         break;
+                    case "6":
+                        if (running.IsCompleted)
+                        {
+                            running = core.CharacterListFromArmoryAsync(progressReporter1);
+                        }
+                        break;
                     case "exit":
                         run = false;
                         break;
@@ -82,29 +90,45 @@ namespace twin_db
 
         private static void PrintHelp()
         {
-            Console.WriteLine("c - set concurrency level");
+            lock(_consoleLock)
+            {
+                Console.WriteLine("c - set concurrency level");
 
-            Console.WriteLine("1 - Download, parse and save Characters");
-            Console.WriteLine("    Going throught aa -> zz");
+                Console.WriteLine("1 - Download, parse and save Characters");
+                Console.WriteLine("    Going throught aa -> zz");
 
-            Console.WriteLine("2 - Download, parse and save Guilds");
-            Console.WriteLine("    Going throught aa -> zz");
+                Console.WriteLine("2 - Download, parse and save Guilds");
+                Console.WriteLine("    Going throught aa -> zz");
 
-            Console.WriteLine("3 - Get Guilds from DB and download their characters");
+                Console.WriteLine("3 - Get Guilds from DB and download their characters");
 
-            Console.WriteLine("4 - Get Guilds from DB and download their APs");
+                Console.WriteLine("4 - Get Guilds from DB and download their APs");
 
-            Console.WriteLine("5 - Get Achievements of Characters");
+                Console.WriteLine("5 - Get Achievements of Characters");
 
-            Console.WriteLine("exit");
+                Console.WriteLine("6 - Create list of existing Characters from Armory, save to file");
+
+                Console.WriteLine("exit");
+            }
         }
 
         public static void ProgressReport(Tuple<int, string> tup)
         {
-            int left = Console.CursorLeft, top = Console.CursorTop; 
-            Console.SetCursorPosition(80 , cursorTop);
-            Console.Write("Started {0,3}%, {1}", tup.Item1.ToString(), tup.Item2);
-            Console.SetCursorPosition(left , top);
+            lock(_consoleLock)
+            {
+                int left = Console.CursorLeft, top = Console.CursorTop; 
+                Console.SetCursorPosition(80 , cursorTop);
+                Console.Write("Started {0,3}%, {1}", tup.Item1.ToString(), tup.Item2);
+                Console.SetCursorPosition(left , top);
+            }
+        }
+
+        public static void WriteLineToConsole(string toWrite)
+        {
+            lock(_consoleLock)
+            {
+                Console.WriteLine(toWrite);
+            }
         }
     }
 
@@ -123,6 +147,9 @@ namespace twin_db
         private const int DEF_SAVEGUARD = 3;
 
         private int _concurrency;
+
+        private SortedSet<string> characterNames;
+        private static readonly Object _characterNamesLock = new Object();
 
         public Core() 
         {
@@ -143,6 +170,17 @@ namespace twin_db
 				}
 			}
 		}
+
+        public void AddCharacterNamesToList(IEnumerable<String> toSave, string URL)
+        {
+            lock(_characterNamesLock)
+            {
+                foreach (string s in toSave)
+                {
+                    characterNames.Add(s);
+                }
+            }
+        }
 
         public async Task UpdateCharactersAchievementsAsync(IProgress<Tuple<int, string>> progres)
         {
@@ -188,6 +226,18 @@ namespace twin_db
             }
             return URLCHARACTERACHIEVEMENTS + realm.Substring(0, realm.Length - 1) + URLNAMESEARCH 
                 + names.Substring(0, names.Length - 1) + URLCATEGORYSEARCH + category.ToString();
+        }
+        private string CreateCharacterAchievURLwoC(List<string> characters)
+        {   
+            string names = "";
+            string realm = "";
+            foreach (string c in characters)
+            {
+                names += c + ",";
+                realm += "Artemis,";
+            }
+            return URLCHARACTERACHIEVEMENTS + realm.Substring(0, realm.Length - 1) + URLNAMESEARCH 
+                + names.Substring(0, names.Length - 1);
         }
 
         public async Task UpdateGuildApAsync(IProgress<Tuple<int, string>> progres)
@@ -273,6 +323,67 @@ namespace twin_db
             Console.WriteLine("GUILDS DONE! elapsed time: {0}", DateTime.Now.Subtract(start).ToString());
         }
 
+        public async Task CharacterListFromArmoryAsync(Progress<Tuple<int, string>> progres)
+        {
+            DateTime start = DateTime.Now;
+            this.characterNames = new SortedSet<string>();
+            Downloader<String> d = new Downloader<string>(this._concurrency, Parser.CharacterNameListParserString, AddCharacterNamesToList);
+            List<string> URLs;
+            int safeGuard = DEF_SAVEGUARD;
+            int URLCount = 0;
+
+            Program.WriteLineToConsole("Make of Character names list STARTED!");
+
+            URLs = InitNameListURLs(URLBASE1, URLCHARSUFFIX);
+
+            while (URLs.Count > 0 && safeGuard-- > 0)
+            {
+                URLCount += URLs.Count;
+
+                Task<List<Tuple<string,bool>>> nameListTask = d.StartDownloadAsync(progres, URLs);
+
+                await nameListTask;
+
+                Program.WriteLineToConsole(String.Format("\nPass {0} done!", (DEF_SAVEGUARD - safeGuard).ToString()));
+                URLs.Clear();
+                foreach(Tuple<string,bool> res in nameListTask.Result)
+                {
+                    if (!res.Item2)
+                    {
+                        URLs.AddRange(ExpandNameListURL(res.Item1, URLCHARSUFFIX));
+                    }
+                }
+                URLs = URLs.Distinct().ToList();
+            }
+            Program.WriteLineToConsole(String.Format("Character name list DONE! elapsed time: {0}", DateTime.Now.Subtract(start).ToString()));
+
+            Downloader<Character> dc = new Downloader<Character>(this._concurrency, Parser.CharacterApKillsParser, DBAccess.SaveCharacterNameList);
+            int charsPerReq = 10;
+            start = DateTime.Now;
+            URLs.Clear();
+
+            Program.WriteLineToConsole("Update of Character APs and Kills STARTED!");
+
+            List<string> names = characterNames.ToList();            
+            for (int i = 0; i < names.Count; i+=charsPerReq)
+            {
+                if ((names.Count - i) < charsPerReq)
+                {
+                    URLs.Add(CreateCharacterAchievURLwoC(names.GetRange(i, names.Count - i)));
+                }
+                else
+                {
+                    URLs.Add(CreateCharacterAchievURLwoC(names.GetRange(i, charsPerReq)));
+                }
+            }         
+
+            Task<List<Tuple<string,bool>>> task = d.StartDownloadAsync(progres, URLs);
+
+            await task;
+
+            Program.WriteLineToConsole(String.Format("Update of Character APs and Kills DONE! elapsed time: {0}", DateTime.Now.Subtract(start).ToString()));
+        }
+
         /*
          * Go throught all possible two char combinations and query server
          * Result is DB with all characters from server
@@ -320,9 +431,9 @@ namespace twin_db
         {
             List<string> URLs = new List<string>();
 
-            for (char cFirst = 'a'; cFirst <= 'b'; cFirst++)
+            for (char cFirst = 'a'; cFirst <= 'a'; cFirst++)
             {
-                for (char cSecond = 'a'; cSecond <= 'e'; cSecond++)
+                for (char cSecond = 'a'; cSecond <= 'a'; cSecond++)
                 {
                      URLs.Add(prefix + cFirst + cSecond + suffix);
                 }

@@ -301,8 +301,6 @@ namespace twin_db
          */
         public static IEnumerable<Character> CharacterNameListParser(WebPage wp)
         {
-            //Console.WriteLine("parse started {0}", wp.URL);
-
             List<Character> parsed = new List<Character>();
             XDocument xdoc;
             
@@ -332,6 +330,95 @@ namespace twin_db
                         c.ForceRefresh = true;
                         c.LastRefresh = DateTime.Now;
                         gName = (string)character.Attribute("guild");
+                        if (gName != null)
+                        {
+                            g = new Guild();
+                            g.Name = gName;
+                            g.Level = 0;
+                            g.FactionId = c.FactionId;
+                            g.AP = 0;
+                            g.ForceRefresh = true;
+                            g.LastRefresh = DateTime.Now;
+                        }
+                        c.Guild = g;
+
+                        parsed.Add(c);
+                    }
+                }
+                catch
+                {
+                    Logger.Log("Erorr in CharacterNameListParser, URL " + wp.URL);
+                }
+            }
+
+            return parsed;
+        }
+
+        public static IEnumerable<String> CharacterNameListParserString(WebPage wp)
+        {
+            List<String> parsed = new List<String>();
+            XDocument xdoc;
+            
+            if (wp.OK) //sanity check
+            {
+                try
+                {
+                    xdoc = XDocument.Parse(wp.content);
+                    IEnumerable<XElement> characters = from el in xdoc.Descendants("character")
+                        where (string)el.Attribute("realm") == "Artemis"
+                        select el;
+                    
+                    foreach(XElement character in characters)
+                    {
+                        string charName = (string)character.Attribute("name");
+
+                        parsed.Add(charName);
+                    }
+                }
+                catch
+                {
+                    Logger.Log("Erorr in CharacterNameListParserString, URL " + wp.URL);
+                }
+            }
+
+            return parsed;
+        }
+
+        public static IEnumerable<Character> CharacterApKillsParser(WebPage wp)
+        {
+            List<Character> parsed = new List<Character>();
+            XDocument xdoc;
+            
+            if (wp.OK) //sanity check
+            {
+                try
+                {
+                    xdoc = XDocument.Parse(wp.content);
+                    IEnumerable<XElement> characters = from el in xdoc.Descendants("character")
+                        select el;
+                    
+                    foreach(XElement character in characters)
+                    {
+                        Character c = new Character();
+                        Guild g = null;
+                        string gName = "";
+                        int tempInt = 0;
+
+                        c.Name = (string)character.Attribute("name");
+                        c.Level = int.Parse((string)character.Attribute("level"));
+                        c.ClassId = int.Parse((string)character.Attribute("classId"));
+                        c.RaceId = int.Parse((string)character.Attribute("raceId"));
+                        c.GenderId = int.Parse((string)character.Attribute("genderId"));
+                        if (!int.TryParse((string)character.Attribute("factionId"), out tempInt))
+                        {
+                            tempInt = 2; //banned character!
+                        }
+                        c.FactionId = tempInt;
+                        c.AP =  int.Parse((string)character.Attribute("points"));
+                        c.HK =  int.Parse((string)character.Attribute("kills"));
+                        c.ForceRefresh = true;
+                        c.LastRefresh = DateTime.Now;
+                        gName = (string)character.Attribute("guildName");
                         if (gName != null)
                         {
                             g = new Guild();
