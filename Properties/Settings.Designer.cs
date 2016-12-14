@@ -8,7 +8,6 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-#if (WINDOWS)
 namespace twin_db.Properties {
     
     
@@ -34,6 +33,14 @@ namespace twin_db.Properties {
                 return ((string)(this["twin_DBConnectionString"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool WINDOWS {
+            get {
+                return ((bool)(this["WINDOWS"]));
+            }
+        }
     }
 }
-#endif
