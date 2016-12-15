@@ -36,7 +36,8 @@ namespace twin_db
             else 
             {   
                 this.OK = false;
-                Logger.Log("Download failed, URL " + this.URL);
+                Logger.Log("Invalid page, URL: " + this.URL);
+                throw new System.Exception("Invalid page, URL: "+ this.URL);
             }
         }
     }

@@ -17,8 +17,7 @@ namespace twin_db
                 var res = await htClient.GetByteArrayAsync(URL);
                 wp.content = Encoding.UTF8.GetString(res, 0 , res.Length).ToString();
                 wp.Valide();
-                if (wp.OK)
-                    Logger.Log("Downloaded in " + DateTime.Now.Subtract(start).ToString() + ", " + wp.URL);
+                Logger.Log("Downloaded in " + DateTime.Now.Subtract(start).ToString() + ", " + wp.URL);
             }
             catch (Exception ex)
             {

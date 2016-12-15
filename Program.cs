@@ -106,7 +106,7 @@ namespace twin_db
 
                 Console.WriteLine("5 - Get Achievements of Characters");
 
-                Console.WriteLine("6 - Create list of existing Characters from Armory, save to file");
+                Console.WriteLine("6 - Create list of existing Characters from Armory, and update AP and kills");
 
                 Console.WriteLine("exit");
             }

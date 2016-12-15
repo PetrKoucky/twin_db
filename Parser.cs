@@ -261,8 +261,6 @@ namespace twin_db
          */
         public static IEnumerable<Guild> GuildNameListParser(WebPage wp)
         {
-            //Console.WriteLine("parse started {0}", wp.URL);
-
             List<Guild> parsed = new List<Guild>();
             XDocument xdoc;
             
@@ -355,6 +353,9 @@ namespace twin_db
             return parsed;
         }
 
+        /*
+         * view-source:http://armory.twinstar.cz/search.xml?searchQuery=aa&searchType=character
+         */
         public static IEnumerable<String> CharacterNameListParserString(WebPage wp)
         {
             List<String> parsed = new List<String>();
@@ -385,59 +386,72 @@ namespace twin_db
             return parsed;
         }
 
+        /*
+         * view-source:http://armory.twinstar.cz/character-achievements.xml?r=&r=Artemis,Artemis&n=Sio,Sedara
+         */
         public static IEnumerable<Character> CharacterApKillsParser(WebPage wp)
         {
             List<Character> parsed = new List<Character>();
-            XDocument xdoc;
+            XDocument xdoc = null;
             
             if (wp.OK) //sanity check
             {
                 try
                 {
                     xdoc = XDocument.Parse(wp.content);
-                    IEnumerable<XElement> characters = from el in xdoc.Descendants("character")
-                        select el;
-                    
-                    foreach(XElement character in characters)
-                    {
-                        Character c = new Character();
-                        Guild g = null;
-                        string gName = "";
-                        int tempInt = 0;
+                }
+                catch
+                {
+                    Logger.Log(string.Format("Malformed XML from URL {0}", wp.URL));
+                    return parsed;
+                }
+                IEnumerable<XElement> characters = from el in xdoc.Descendants("character")
+                    select el;
+                
+                foreach(XElement character in characters)
+                {
+                    Character c = new Character();
+                    Guild g = null;
+                    string gName = "";
+                    int tempInt = 0;
 
+                    try
+                    {
                         c.Name = (string)character.Attribute("name");
                         c.Level = int.Parse((string)character.Attribute("level"));
                         c.ClassId = int.Parse((string)character.Attribute("classId"));
                         c.RaceId = int.Parse((string)character.Attribute("raceId"));
                         c.GenderId = int.Parse((string)character.Attribute("genderId"));
+                        c.AP =  int.Parse((string)character.Attribute("points"));
+                        c.HK =  int.Parse((string)character.Attribute("kills"));
+                        gName = (string)character.Attribute("guildName");
                         if (!int.TryParse((string)character.Attribute("factionId"), out tempInt))
                         {
                             tempInt = 2; //banned character!
                         }
                         c.FactionId = tempInt;
-                        c.AP =  int.Parse((string)character.Attribute("points"));
-                        c.HK =  int.Parse((string)character.Attribute("kills"));
-                        c.ForceRefresh = true;
-                        c.LastRefresh = DateTime.Now;
-                        gName = (string)character.Attribute("guildName");
-                        if (gName != null)
-                        {
-                            g = new Guild();
-                            g.Name = gName;
-                            g.Level = 0;
-                            g.FactionId = c.FactionId;
-                            g.AP = 0;
-                            g.ForceRefresh = true;
-                            g.LastRefresh = DateTime.Now;
-                        }
-                        c.Guild = g;
-
-                        parsed.Add(c);
                     }
-                }
-                catch
-                {
-                    Logger.Log("Erorr in CharacterNameListParser, URL " + wp.URL);
+                    catch
+                    {
+                        Logger.Log(string.Format("Failed character info parsing, {0}", c.Name));
+                        continue;
+                    }
+                    c.ForceRefresh = true;
+                    c.LastRefresh = DateTime.Now;
+                    
+                    if (gName != null)
+                    {
+                        g = new Guild();
+                        g.Name = gName;
+                        g.Level = 0;
+                        g.FactionId = c.FactionId;
+                        g.AP = 0;
+                        g.ForceRefresh = true;
+                        g.LastRefresh = DateTime.Now;
+                    }
+                    c.Guild = g;
+
+                    parsed.Add(c);
                 }
             }
 
